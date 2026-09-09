@@ -16,7 +16,7 @@ Each type has a different revenue split with **Python Poker**:
 | Entry Type | Python Poker Gets | You Keep |
 |---|---|---|
 | Original Entry | 50% | 50% |
-| Re-Entry | 70% | 30% |
+| Re-Entry | 30% | 70% |
 
 The app automatically calculates these splits for every day, week, month, and running total.
 
@@ -27,9 +27,11 @@ The app automatically calculates these splits for every day, week, month, and ru
 - 💰 **Automatic Split Calculation** — instantly computes:
   - Total original entry income
   - Total re-entry income
-  - Python Poker's cut (50% of originals + 70% of re-entries)
+  - Python Poker's cut (50% of originals + 30% of re-entries)
+  - Your net take-home (50% of originals + 70% of re-entries)
   - Your net take-home
 - 📊 **Summaries** — daily, weekly, monthly, and all-time totals
+- 🏦 **Savings Reserve** — automatically set aside $25 for every logged night and track it separately
 - 🖊️ **Edit/Delete Entries** — update a day's numbers if something changes
 - 💾 **Persistent Storage** — saved locally (or to a backend/database, depending on setup) so your history isn't lost
 - 📤 **Export** — optional CSV/JSON export for taxes or bookkeeping
@@ -42,8 +44,9 @@ For any given day:
 Original Income     = (# of Original Entries) × (Entry Amount)
 Re-Entry Income      = (# of Re-Entries) × (Entry Amount)
 
-Python Poker Cut     = (Original Income × 0.50) + (Re-Entry Income × 0.70)
-Your Net Income      = (Original Income × 0.50) + (Re-Entry Income × 0.30)
+Python Poker Cut     = (Original Income × 0.50) + (Re-Entry Income × 0.30)
+Your Net Income      = (Original Income × 0.50) + (Re-Entry Income × 0.70)
+Available Take-Home  = Your Net Income - $25 nightly savings reserve
 
 Total Day Income     = Original Income + Re-Entry Income
 ```
@@ -53,8 +56,8 @@ Total Day Income     = Original Income + Re-Entry Income
 - 4 Re-Entries @ $50 = $200
 
 ```
-Python Poker Cut = ($500 × 0.50) + ($200 × 0.70) = $250 + $140 = $390
-Your Net Income  = ($500 × 0.50) + ($200 × 0.30) = $250 + $60  = $310
+Python Poker Cut = ($500 × 0.50) + ($200 × 0.30) = $250 + $60  = $310
+Your Net Income  = ($500 × 0.50) + ($200 × 0.70) = $250 + $140 = $390
 ```
 
 ## 🛠️ Tech Stack

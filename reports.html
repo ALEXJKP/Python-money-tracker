@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stacked | Reports</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="reports.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">♠</span><span>STACKED</span></div>
+      <div class="profile"><div class="avatar">AS</div><div><strong>Alex schlesier</strong><span>Dealer account</span></div><button class="icon-button" aria-label="Open account menu">•••</button></div>
+      <nav aria-label="Primary navigation"><a class="nav-item" href="index.html"><span class="nav-icon">▦</span>Overview</a><a class="nav-item" href="index.html#calendar"><span class="nav-icon">◫</span>Calendar</a><a class="nav-item active" href="reports.html"><span class="nav-icon">◒</span>Reports</a></nav>
+      <div class="sidebar-bottom"><div class="tip-card"><span class="tip-label">REPORTING</span><p>Use the range view to spot your strongest nights and keep your weekly pace visible.</p></div><a class="nav-item" href="index.html#settings"><span class="nav-icon">⚙</span>Settings</a></div>
+    </aside>
+    <main class="main-content reports-main">
+      <header class="topbar"><div><p class="eyebrow">PERFORMANCE REPORTS</p><h1>See the whole hand.</h1></div><div class="top-actions"><span class="sync-status"><span class="status-dot"></span>Live from your ledger</span><button class="button button-dark" id="export-report"><span>↓</span> Export report</button></div></header>
+      <section class="report-toolbar"><div class="period-tabs" role="tablist" aria-label="Report range"><button class="period-tab active" data-period="night">Night</button><button class="period-tab" data-period="week">Week</button><button class="period-tab" data-period="month">Month</button></div><div class="range-controls"><button class="round-button" id="previous-range" aria-label="Previous range">←</button><strong id="range-label">September 9, 2026</strong><button class="round-button" id="next-range" aria-label="Next range">→</button></div></section>
+      <section class="report-summary" aria-label="Report summary"><article class="report-card highlight"><span class="report-label">YOUR TAKE-HOME</span><strong id="report-net">$0.00</strong><small id="report-period">After Savings</small></article><article class="report-card"><span class="report-label">GROSS INCOME</span><strong id="report-gross">$0.00</strong><small id="report-entry-count">0 entries</small></article><article class="report-card"><span class="report-label">SAVINGS</span><strong id="report-savings">$0.00</strong><small id="report-savings-nights">$25 per night</small></article><article class="report-card"><span class="report-label">AVERAGE / NIGHT</span><strong id="report-average">$0.00</strong><small id="report-active-nights">0 active nights</small></article><article class="report-card"><span class="report-label">BEST NIGHT</span><strong id="report-best">$0.00</strong><small id="report-best-date">No sessions yet</small></article></section>
+      <section class="report-grid"><article class="chart-panel"><div class="section-header"><div><p class="eyebrow">TAKE-HOME TREND</p><h2 id="chart-title">Nightly take-home</h2></div><span class="chart-key"><i></i>Your take-home</span></div><div class="chart" id="chart"><div class="chart-empty">Add sessions to see your trend.</div></div></article><aside class="insight-panel"><p class="eyebrow">AT A GLANCE</p><h2>What the numbers say</h2><div class="insight-list"><div><span class="insight-icon">↗</span><p>Best day<span id="insight-best">No sessions yet</span></p></div><div><span class="insight-icon">◒</span><p>Average original entries<span id="insight-original">0 per active night</span></p></div><div><span class="insight-icon">♣</span><p>House share<span id="insight-house">$0.00 retained</span></p></div></div><div class="split-meter"><div class="meter-label"><span>Your net</span><strong id="net-share">0%</strong></div><div class="meter"><i id="net-meter"></i></div><div class="meter-label"><span>Python Poker</span><strong id="house-share">0%</strong></div></div></aside></section>
+      <section class="breakdown-section"><div class="section-header"><div><p class="eyebrow">DETAIL</p><h2>Period breakdown</h2></div><span class="table-meta" id="breakdown-count">0 nights</span></div><div class="breakdown" id="breakdown"><div class="report-empty">There is no session data in this range yet.</div></div></section>
+    </main>
+  </div>
+  <script src="reports.js"></script>
+</body>
+</html>
