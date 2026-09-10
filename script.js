@@ -2,6 +2,8 @@ const STORAGE_KEY = 'ledgerly-workspace-v1';
 const CATEGORIES = ['Housing', 'Food', 'Transport', 'Utilities', 'Health', 'Fun', 'Shopping', 'Savings', 'Other'];
 const CATEGORY_ICONS = { Housing: '⌂', Food: '●', Transport: '↗', Utilities: 'ϟ', Health: '+', Fun: '✦', Shopping: '□', Savings: '◎', Other: '•' };
 const MONTH = '2026-09';
+const cloneDefaults = () => JSON.parse(JSON.stringify(defaultState));
+const createId = () => globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function' ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const defaultState = {
   transactions: [
     { id: 'demo-1', description: 'Salary deposit', amount: 4200, type: 'income', category: 'Income', date: '2026-09-01' },
@@ -22,8 +24,6 @@ let state = loadState();
 const $ = (selector) => document.querySelector(selector);
 const money = (value) => `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = () => new Date().toISOString().slice(0, 10);
-const cloneDefaults = () => JSON.parse(JSON.stringify(defaultState));
-const createId = () => globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function' ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const formatDate = (value) => new Date(`${value}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 const categoryFor = (description) => {
   const text = description.toLowerCase();
