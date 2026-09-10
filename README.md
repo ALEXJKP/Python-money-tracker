@@ -12,6 +12,8 @@ Ledgerly is a small, local-first personal finance dashboard. It runs as a static
 - Recurring bill list with due dates
 - Seven-day cash-flow chart
 - CSV import and export
+- Bank statement import from CSV, OFX, and QFX files with a review preview
+- Automatic income/expense detection, category suggestions, and duplicate skipping
 - Responsive layout with useful empty states
 - Persistent browser storage through `localStorage`
 

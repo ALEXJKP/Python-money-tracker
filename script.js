@@ -12,6 +12,7 @@ const defaultState = {
   budgets: { Housing: 1600, Food: 500, Transport: 250, Utilities: 220, Health: 180, Fun: 250, Shopping: 250 }
 };
 let state = loadState();
+let pendingImport = [];
 
 const $ = (selector) => document.querySelector(selector);
 const money = (value) => `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -96,6 +97,86 @@ function renderAlert() {
 }
 function renderAll() { renderSummary(); renderChart(); renderBudgets(); renderTransactions(); renderBills(); renderInputLog(); renderAlert(); saveState(); }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
+function parseCsvLine(line) {
+  const values = [];
+  let value = '';
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"' && line[index + 1] === '"') { value += '"'; index += 1; }
+    else if (character === '"') quoted = !quoted;
+    else if (character === ',' && !quoted) { values.push(value.trim()); value = ''; }
+    else value += character;
+  }
+  values.push(value.trim());
+  return values;
+}
+function normalizeDate(value) {
+  const text = String(value || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const parts = text.split(/[\/-]/).map(Number);
+  if (parts.length === 3) {
+    const [first, second, third] = parts;
+    if (first > 1900) return `${first}-${String(second).padStart(2, '0')}-${String(third).padStart(2, '0')}`;
+    if (third > 1900) return `${third}-${String(first).padStart(2, '0')}-${String(second).padStart(2, '0')}`;
+  }
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+}
+function numberValue(value) {
+  const cleaned = String(value || '').replace(/[$,\s]/g, '').replace(/^\((.*)\)$/, '-$1');
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : 0;
+}
+function parseStatement(text, extension) {
+  if (extension === 'ofx' || extension === 'qfx' || /<STMTTRN>/i.test(text)) {
+    const rows = [...text.matchAll(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi)];
+    return rows.map((match) => {
+      const block = match[1];
+      const get = (name) => block.match(new RegExp(`<${name}>([^<\\r\\n]+)`, 'i'))?.[1]?.trim() || '';
+      const amount = numberValue(get('TRNAMT'));
+      return { date: normalizeDate(get('DTPOSTED').slice(0, 8).replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')), description: get('NAME') || get('MEMO') || 'Imported transaction', type: amount >= 0 ? 'income' : 'expense', amount: Math.abs(amount), category: categoryFor(get('NAME') || get('MEMO')) };
+    }).filter((row) => row.date && row.amount > 0);
+  }
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return [];
+  const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase().replace(/[^a-z]/g, ''));
+  const find = (names) => names.map((name) => headers.indexOf(name)).find((index) => index >= 0);
+  const dateIndex = find(['date', 'transactiondate', 'posteddate', 'postdate']);
+  const descriptionIndex = find(['description', 'name', 'memo', 'payee', 'merchant', 'details']);
+  const amountIndex = find(['amount', 'transactionamount', 'value']);
+  const debitIndex = find(['debit', 'withdrawal', 'withdrawals']);
+  const creditIndex = find(['credit', 'deposit', 'deposits']);
+  const typeIndex = find(['type', 'transactiontype']);
+  const categoryIndex = find(['category', 'categories']);
+  if (dateIndex === undefined || descriptionIndex === undefined || (amountIndex === undefined && debitIndex === undefined && creditIndex === undefined)) return [];
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    const description = values[descriptionIndex] || 'Imported transaction';
+    const amountValue = amountIndex === undefined ? numberValue(values[creditIndex]) || -numberValue(values[debitIndex]) : numberValue(values[amountIndex]);
+    const explicitType = String(values[typeIndex] || '').toLowerCase();
+    const income = explicitType.includes('credit') || explicitType.includes('income') || amountValue > 0;
+    return { date: normalizeDate(values[dateIndex]), description, type: income ? 'income' : 'expense', amount: Math.abs(amountValue), category: income ? 'Income' : (values[categoryIndex] || categoryFor(description)) };
+  }).filter((row) => row.date && row.amount > 0);
+}
+function transactionKey(row) { return `${row.date}|${row.description.toLowerCase()}|${row.type}|${row.amount.toFixed(2)}`; }
+function renderImportPreview() {
+  const duplicates = pendingImport.filter((row) => state.transactions.some((saved) => transactionKey(saved) === transactionKey(row))).length;
+  $('#import-summary').textContent = `${pendingImport.length} transactions found. ${duplicates} duplicate${duplicates === 1 ? '' : 's'} will be skipped. Review the categories before saving.`;
+  $('#import-rows').innerHTML = pendingImport.slice(0, 250).map((row) => `<tr><td>${formatDate(row.date)}</td><td>${escapeHtml(row.description)}</td><td>${row.type === 'income' ? 'Income' : 'Expense'}</td><td>${escapeHtml(row.category)}</td><td>${row.type === 'income' ? '+' : '-'}${money(row.amount)}</td></tr>`).join('');
+  $('#statement-preview').hidden = false;
+}
+function readStatement(file) {
+  const extension = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImport = parseStatement(String(reader.result), extension);
+    if (!pendingImport.length) { $('#statement-status').textContent = 'No readable transactions found. Use a CSV with date, description, and amount columns, or an OFX/QFX export.'; $('#statement-preview').hidden = true; return; }
+    $('#statement-status').textContent = '';
+    renderImportPreview();
+  };
+  reader.readAsText(file);
+}
 function fillCategorySelects() {
   ['transaction-category', 'bill-category'].forEach((id) => { $(`#${id}`).innerHTML = CATEGORIES.map((category) => `<option value="${category}">${category}</option>`).join(''); });
   $('#budget-fields').innerHTML = CATEGORIES.filter((category) => category !== 'Other').map((category) => `<label>${category}<input name="${category}" type="number" min="0" step="1" value="${state.budgets[category] || 0}" /></label>`).join('');
@@ -118,5 +199,12 @@ $('#clear-data').addEventListener('click', () => { if (confirm('Reset your works
 function csvEscape(value) { return `"${String(value).replace(/"/g, '""')}"`; }
 $('#export-button').addEventListener('click', () => { const rows = [['Date', 'Description', 'Type', 'Category', 'Amount'], ...state.transactions.map((item) => [item.date, item.description, item.type, item.category, item.amount.toFixed(2)])]; const blob = new Blob([rows.map((row) => row.map(csvEscape).join(',')).join('\n')], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'ledgerly-transactions.csv'; link.click(); URL.revokeObjectURL(link.href); showToast('CSV exported'); });
 $('#import-button').addEventListener('click', () => $('#import-file').click());
-$('#import-file').addEventListener('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { const lines = String(reader.result).split(/\r?\n/).filter(Boolean).slice(1); const imported = lines.map((line) => line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g)?.map((value) => value.replace(/^"|"$/g, '').replace(/""/g, '"'))).filter((row) => row?.length >= 5 && Number(row[4]) > 0).map((row) => ({ id: createId(), date: row[0], description: row[1], type: row[2] === 'income' ? 'income' : 'expense', category: row[3] || categoryFor(row[1]), amount: Number(row[4]) })); state.transactions.push(...imported); renderAll(); showToast(`${imported.length} transaction${imported.length === 1 ? '' : 's'} imported`); event.target.value = ''; }; reader.readAsText(file); });
+$('#import-file').addEventListener('change', (event) => { const file = event.target.files[0]; if (!file) return; readStatement(file); event.target.value = ''; });
+$('#statement-file-button').addEventListener('click', () => $('#statement-file').click());
+$('#statement-file').addEventListener('change', (event) => { const file = event.target.files[0]; if (file) readStatement(file); event.target.value = ''; });
+$('#statement-dropzone').addEventListener('dragover', (event) => { event.preventDefault(); event.currentTarget.classList.add('dragging'); });
+$('#statement-dropzone').addEventListener('dragleave', (event) => event.currentTarget.classList.remove('dragging'));
+$('#statement-dropzone').addEventListener('drop', (event) => { event.preventDefault(); event.currentTarget.classList.remove('dragging'); const file = event.dataTransfer.files[0]; if (file) readStatement(file); });
+$('#cancel-import').addEventListener('click', () => { pendingImport = []; $('#statement-preview').hidden = true; });
+$('#save-import').addEventListener('click', () => { const existing = new Set(state.transactions.map(transactionKey)); const imported = pendingImport.filter((row) => !existing.has(transactionKey(row))).map((row) => ({ ...row, id: createId() })); imported.forEach((transaction) => { state.transactions.push(transaction); state.activityLog.push({ kind: 'transaction', label: transaction.description, amount: transaction.amount, type: transaction.type, savedAt: new Date().toISOString() }); }); pendingImport = []; $('#statement-preview').hidden = true; renderAll(); showToast(`${imported.length} transaction${imported.length === 1 ? '' : 's'} imported`); });
 fillCategorySelects(); renderAll();
