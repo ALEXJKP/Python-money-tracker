@@ -6,6 +6,8 @@ Ledgerly is a small, local-first personal finance dashboard. It runs as a static
 
 - Monthly income, spending, available cash, and savings-rate summary
 - Add income and expenses with validation and keyword-based category suggestions
+- Autosaves unfinished transaction and bill forms as browser drafts
+- Separate input log showing each saved transaction and recurring bill
 - Category budgets with progress meters and over-budget alerts
 - Recurring bill list with due dates
 - Seven-day cash-flow chart

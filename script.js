@@ -2,11 +2,13 @@ const STORAGE_KEY = 'ledgerly-workspace-v1';
 const CATEGORIES = ['Housing', 'Food', 'Transport', 'Utilities', 'Health', 'Fun', 'Shopping', 'Savings', 'Other'];
 const CATEGORY_ICONS = { Housing: '⌂', Food: '●', Transport: '↗', Utilities: 'ϟ', Health: '+', Fun: '✦', Shopping: '□', Savings: '◎', Other: '•' };
 const MONTH = '2026-09';
+const DRAFTS_KEY = 'ledgerly-drafts-v1';
 const cloneDefaults = () => JSON.parse(JSON.stringify(defaultState));
 const createId = () => globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function' ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const defaultState = {
   transactions: [],
   bills: [],
+  activityLog: [],
   budgets: { Housing: 1600, Food: 500, Transport: 250, Utilities: 220, Health: 180, Fun: 250, Shopping: 250 }
 };
 let state = loadState();
@@ -29,6 +31,7 @@ function loadState() {
       ...saved,
       transactions: (saved.transactions || []).filter((transaction) => !String(transaction.id).startsWith('demo-')),
       bills: (saved.bills || []).filter((bill) => !['bill-1', 'bill-2', 'bill-3'].includes(bill.id)),
+      activityLog: saved.activityLog || [],
       budgets: { ...defaultState.budgets, ...saved.budgets }
     };
   } catch { return cloneDefaults(); }
@@ -80,24 +83,35 @@ function renderBills() {
   const rows = [...state.bills].sort((a, b) => a.dueDay - b.dueDay);
   $('#bill-list').innerHTML = rows.length ? rows.map((bill) => `<div class="bill-row"><div class="bill-date">${bill.dueDay}<small>SEP</small></div><div class="bill-detail"><strong>${escapeHtml(bill.name)}</strong><span>${bill.category}</span></div><strong class="bill-amount">${money(bill.amount)}</strong></div>`).join('') : '<div class="list-empty">No recurring bills. You are all clear.</div>';
 }
+function renderInputLog() {
+  const rows = [...state.activityLog].sort((a, b) => b.savedAt.localeCompare(a.savedAt)).slice(0, 12);
+  $('#input-log-count').textContent = `${state.activityLog.length} entr${state.activityLog.length === 1 ? 'y' : 'ies'}`;
+  $('#input-log-list').innerHTML = rows.length ? rows.map((row) => `<div class="input-log-row"><span class="input-log-kind">${row.kind === 'transaction' ? '↔' : '↻'}</span><div><strong>${escapeHtml(row.label)}</strong><span>${row.kind === 'transaction' ? `${row.type === 'income' ? 'Income' : 'Expense'} · ${money(row.amount)}` : `${money(row.amount)} monthly · due day ${row.dueDay}`}</span></div><time>${new Date(row.savedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time></div>`).join('') : '<div class="list-empty">Your saved inputs will appear here.</div>';
+}
 function renderAlert() {
   const summary = totals();
   const over = Object.entries(state.budgets).find(([category, limit]) => (summary.categories[category] || 0) > limit);
   const alert = $('#alert-strip');
   if (over) { alert.hidden = false; $('#alert-title').textContent = `${over[0]} is over budget`; $('#alert-message').textContent = ` You have spent ${money(summary.categories[over[0]] - over[1])} beyond your monthly limit.`; } else if (summary.income && summary.expense / summary.income > .8) { alert.hidden = false; $('#alert-title').textContent = 'Spending is picking up'; $('#alert-message').textContent = ' More than 80% of this month’s income is already allocated.'; } else alert.hidden = true;
 }
-function renderAll() { renderSummary(); renderChart(); renderBudgets(); renderTransactions(); renderBills(); renderAlert(); saveState(); }
+function renderAll() { renderSummary(); renderChart(); renderBudgets(); renderTransactions(); renderBills(); renderInputLog(); renderAlert(); saveState(); }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character])); }
 function fillCategorySelects() {
   ['transaction-category', 'bill-category'].forEach((id) => { $(`#${id}`).innerHTML = CATEGORIES.map((category) => `<option value="${category}">${category}</option>`).join(''); });
   $('#budget-fields').innerHTML = CATEGORIES.filter((category) => category !== 'Other').map((category) => `<label>${category}<input name="${category}" type="number" min="0" step="1" value="${state.budgets[category] || 0}" /></label>`).join('');
 }
-function openModal(id) { $(`#${id}`).hidden = false; const form = $(`#${id} form`); if (id === 'transaction-modal') { form.reset(); form.elements.date.value = today(); form.elements.category.value = 'Other'; } if (id === 'budget-modal') fillCategorySelects(); }
+function getDrafts() { try { return JSON.parse(localStorage.getItem(DRAFTS_KEY)) || {}; } catch { return {}; } }
+function saveDraft(formName, form) { const drafts = getDrafts(); drafts[formName] = Object.fromEntries(new FormData(form).entries()); localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts)); }
+function restoreDraft(formName, form) { const draft = getDrafts()[formName]; if (!draft) return; Object.entries(draft).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); }
+function clearDraft(formName) { const drafts = getDrafts(); delete drafts[formName]; localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts)); }
+function openModal(id) { $(`#${id}`).hidden = false; const form = $(`#${id} form`); if (id === 'transaction-modal') { form.reset(); form.elements.date.value = today(); form.elements.category.value = 'Other'; restoreDraft('transaction', form); } if (id === 'bill-modal') { form.reset(); form.elements.category.value = 'Other'; restoreDraft('bill', form); } if (id === 'budget-modal') fillCategorySelects(); }
 function closeModal(modal) { modal.hidden = true; }
 function showToast(message) { const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2200); }
 document.addEventListener('click', (event) => { const opener = event.target.closest('[data-open-modal]'); if (opener) openModal(opener.dataset.openModal); const closer = event.target.closest('[data-close-modal]'); if (closer) closeModal(closer.closest('.modal-backdrop')); if (event.target.classList.contains('modal-backdrop')) closeModal(event.target); });
-$('#transaction-form').addEventListener('submit', (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const description = form.get('description').trim(); state.transactions.push({ id: createId(), description, amount: Number(form.get('amount')), type: form.get('type'), category: form.get('type') === 'income' ? 'Income' : (form.get('category') === 'Other' ? categoryFor(description) : form.get('category')), date: form.get('date') }); closeModal($('#transaction-modal')); renderAll(); showToast('Transaction saved'); });
-$('#bill-form').addEventListener('submit', (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); state.bills.push({ id: createId(), name: form.get('name').trim(), amount: Number(form.get('amount')), dueDay: Number(form.get('dueDay')), category: form.get('category') }); closeModal($('#bill-modal')); renderAll(); showToast('Recurring bill added'); });
+$('#transaction-form').addEventListener('input', (event) => saveDraft('transaction', event.currentTarget));
+$('#bill-form').addEventListener('input', (event) => saveDraft('bill', event.currentTarget));
+$('#transaction-form').addEventListener('submit', (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const description = form.get('description').trim(); const transaction = { id: createId(), description, amount: Number(form.get('amount')), type: form.get('type'), category: form.get('type') === 'income' ? 'Income' : (form.get('category') === 'Other' ? categoryFor(description) : form.get('category')), date: form.get('date') }; state.transactions.push(transaction); state.activityLog.push({ kind: 'transaction', label: description, amount: transaction.amount, type: transaction.type, savedAt: new Date().toISOString() }); clearDraft('transaction'); closeModal($('#transaction-modal')); renderAll(); showToast('Transaction saved'); });
+$('#bill-form').addEventListener('submit', (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const bill = { id: createId(), name: form.get('name').trim(), amount: Number(form.get('amount')), dueDay: Number(form.get('dueDay')), category: form.get('category') }; state.bills.push(bill); state.activityLog.push({ kind: 'bill', label: bill.name, amount: bill.amount, dueDay: bill.dueDay, savedAt: new Date().toISOString() }); clearDraft('bill'); closeModal($('#bill-modal')); renderAll(); showToast('Recurring bill added'); });
 $('#budget-form').addEventListener('submit', (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); CATEGORIES.filter((category) => category !== 'Other').forEach((category) => { state.budgets[category] = Number(form.get(category)) || 0; }); closeModal($('#budget-modal')); renderAll(); showToast('Budgets updated'); });
 $('#dismiss-alert').addEventListener('click', () => { $('#alert-strip').hidden = true; });
 $('#clear-data').addEventListener('click', () => { if (confirm('Reset your workspace and remove all saved data?')) { localStorage.removeItem(STORAGE_KEY); state = cloneDefaults(); renderAll(); showToast('Workspace reset'); } });
