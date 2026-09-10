@@ -192,29 +192,40 @@ async function parsePdfStatement(file) {
   const amountPattern = /(?:\(?\$?\s*-?\d{1,3}(?:,\d{3})*(?:\.\d{2})\)?|\(?\$?\s*-?\d+\.\d{2}\)?)(?!\d)/g;
   let sectionType = 'expense';
   const activityStart = lines.findIndex((line) => /daily account activity/i.test(line));
-  const blocks = [];
+  const records = [];
+  const orphanAmounts = [];
   let current = null;
+  let pendingDate = '';
+  const transactionMarker = /(?:VISA TRANSFER|CASH APP|TD ZELLE|DEBIT CARD PURCHASE|ELECTRONIC PMT(?:-WEB)?|OD GRACE FEE|SERVICE CHARGE|ATM|CHECK|ACH|DIRECT DEP|PAYROLL|ONLINE PMT|MOBILE PMT|PURCHASE|WITHDRAWAL|REFUND|INTEREST)/i;
+  const flush = () => {
+    if (current) records.push(current);
+    current = null;
+  };
   lines.slice(Math.max(activityStart, 0)).forEach((line) => {
     if (/electronic deposits|other credits/i.test(line)) sectionType = 'income';
     if (/electronic payments|other withdrawals|fees and charges/i.test(line)) sectionType = 'expense';
     const dateMatch = line.match(datePattern);
-    if (dateMatch) {
-      if (current) blocks.push(current);
-      current = { date: dateMatch[1], type: sectionType, text: line.replace(dateMatch[0], '').trim(), amounts: [] };
-      return;
-    }
-    if (!current || /statement of account|page:|call 1-|bank deposits fdic|account summary|ending balance|statement period/i.test(line)) return;
+    if (dateMatch) pendingDate = dateMatch[1];
+    if (/statement of account|page:|call 1-|bank deposits fdic|account summary|ending balance|statement period|subtotal|total for this/i.test(line)) return;
     const amounts = line.match(amountPattern) || [];
-    current.amounts.push(...amounts);
-    current.text += `${current.text ? ' ' : ''}${line.replace(amountPattern, ' ').trim()}`;
+    const text = line.replace(amountPattern, ' ').replace(dateMatch?.[0] || '', '').replace(/\s{2,}/g, ' ').trim();
+    if (transactionMarker.test(text)) {
+      flush();
+      current = { date: pendingDate, type: sectionType, text, amounts: [] };
+    } else if (current && text) {
+      current.text += `${current.text ? ' ' : ''}${text}`;
+    } else if (!current) {
+      orphanAmounts.push(...amounts);
+    }
+    if (current) current.amounts.push(...amounts);
   });
-  if (current) blocks.push(current);
-  return blocks.map((block) => {
-    const amountText = block.amounts[block.amounts.length - 1];
+  flush();
+  return records.map((record) => {
+    const amountText = record.amounts[record.amounts.length - 1] || orphanAmounts.shift();
     const amount = numberValue(amountText);
-    const description = block.text.replace(/\s{2,}/g, ' ').replace(/^(continued|amount)$/i, '').trim();
+    const description = record.text.replace(/\s{2,}/g, ' ').replace(/^(continued|amount)$/i, '').trim();
     if (!description || !amount) return null;
-    const income = block.type === 'income' || (amount > 0 && !/[(-]\s*\$?\d/.test(amountText));
+    const income = record.type === 'income' || (amount > 0 && !/[(-]\s*\$?\d/.test(amountText));
     return { date: normalizeDate(block.date, statementYear), description, type: income ? 'income' : 'expense', amount: Math.abs(amount), category: income ? 'Income' : categoryFor(description) };
   }).filter((row) => row && row.date && row.amount > 0 && row.description.length > 3);
 }
