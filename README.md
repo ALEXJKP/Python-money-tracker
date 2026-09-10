@@ -12,8 +12,10 @@ Ledgerly is a small, local-first personal finance dashboard. It runs as a static
 - Recurring bill list with due dates
 - Seven-day cash-flow chart
 - CSV import and export
-- Bank statement import from CSV, OFX, and QFX files with a review preview
+- Bank statement import from PDF, CSV, OFX, and QFX files with a review preview
 - Automatic income/expense detection, category suggestions, and duplicate skipping
+
+PDF imports extract selectable text in the browser. Scanned/image-only PDFs cannot be read without OCR and are reported clearly so they are not imported incorrectly.
 - Responsive layout with useful empty states
 - Persistent browser storage through `localStorage`
 

@@ -166,8 +166,52 @@ function renderImportPreview() {
   $('#import-rows').innerHTML = pendingImport.slice(0, 250).map((row) => `<tr><td>${formatDate(row.date)}</td><td>${escapeHtml(row.description)}</td><td>${row.type === 'income' ? 'Income' : 'Expense'}</td><td>${escapeHtml(row.category)}</td><td>${row.type === 'income' ? '+' : '-'}${money(row.amount)}</td></tr>`).join('');
   $('#statement-preview').hidden = false;
 }
-function readStatement(file) {
+async function parsePdfStatement(file) {
+  const pdfjs = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs');
+  const buffer = await file.arrayBuffer();
+  const document = await pdfjs.getDocument({ data: buffer }).promise;
+  const lines = [];
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const page = await document.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const items = content.items.filter((item) => item.str.trim()).sort((a, b) => a.transform[5] === b.transform[5] ? a.transform[4] - b.transform[4] : b.transform[5] - a.transform[5]);
+    let currentY = null;
+    let line = '';
+    items.forEach((item) => {
+      const y = Math.round(item.transform[5]);
+      if (currentY !== null && Math.abs(y - currentY) > 3) { if (line.trim()) lines.push(line.trim()); line = ''; }
+      line += `${line ? ' ' : ''}${item.str.trim()}`;
+      currentY = y;
+    });
+    if (line.trim()) lines.push(line.trim());
+  }
+  const datePattern = /\b(?:\d{1,2}[\/-]\d{1,2}[\/-](?:\d{2}|\d{4})|\d{4}[\/-]\d{1,2}[\/-]\d{1,2})\b/;
+  const amountPattern = /(?:\(?\$?\s*-?\d{1,3}(?:,\d{3})*(?:\.\d{2})\)?|\(?\$?\s*-?\d+\.\d{2}\)?)(?!\d)/g;
+  return lines.map((line) => {
+    const dateMatch = line.match(datePattern);
+    const amountMatches = line.match(amountPattern);
+    if (!dateMatch || !amountMatches) return null;
+    const amount = numberValue(amountMatches[amountMatches.length - 1]);
+    const description = line.replace(dateMatch[0], '').replace(amountMatches[amountMatches.length - 1], '').replace(/\s{2,}/g, ' ').trim();
+    if (!description || !amount) return null;
+    const income = amount > 0 && !/[(-]\s*\$?\d/.test(amountMatches[amountMatches.length - 1]);
+    return { date: normalizeDate(dateMatch[0]), description, type: income ? 'income' : 'expense', amount: Math.abs(amount), category: income ? 'Income' : categoryFor(description) };
+  }).filter((row) => row && row.date && row.amount > 0);
+}
+async function readStatement(file) {
   const extension = file.name.split('.').pop().toLowerCase();
+  if (extension === 'pdf') {
+    try {
+      pendingImport = await parsePdfStatement(file);
+      if (!pendingImport.length) { $('#statement-status').textContent = 'The PDF opened, but no transaction rows were detected. This usually means it is a scanned image PDF or uses a layout that needs manual mapping.'; $('#statement-preview').hidden = true; return; }
+      $('#statement-status').textContent = '';
+      renderImportPreview();
+    } catch (error) {
+      $('#statement-status').textContent = `Could not read this PDF in the browser: ${error.message}`;
+      $('#statement-preview').hidden = true;
+    }
+    return;
+  }
   const reader = new FileReader();
   reader.onload = () => {
     pendingImport = parseStatement(String(reader.result), extension);
