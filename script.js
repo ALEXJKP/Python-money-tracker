@@ -168,6 +168,7 @@ function renderImportPreview() {
 }
 async function parsePdfStatement(file) {
   const pdfjs = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
   const buffer = await file.arrayBuffer();
   const document = await pdfjs.getDocument({ data: buffer }).promise;
   const lines = [];
