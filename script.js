@@ -111,7 +111,7 @@ function parseCsvLine(line) {
   values.push(value.trim());
   return values;
 }
-function normalizeDate(value) {
+function normalizeDate(value, fallbackYear = new Date().getFullYear()) {
   const text = String(value || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
   const parts = text.split(/[\/-]/).map(Number);
@@ -120,6 +120,7 @@ function normalizeDate(value) {
     if (first > 1900) return `${first}-${String(second).padStart(2, '0')}-${String(third).padStart(2, '0')}`;
     if (third > 1900) return `${third}-${String(first).padStart(2, '0')}-${String(second).padStart(2, '0')}`;
   }
+  if (parts.length === 2 && parts[0] >= 1 && parts[0] <= 12 && parts[1] >= 1 && parts[1] <= 31) return `${fallbackYear}-${String(parts[0]).padStart(2, '0')}-${String(parts[1]).padStart(2, '0')}`;
   const parsed = new Date(text);
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
 }
@@ -186,17 +187,22 @@ async function parsePdfStatement(file) {
     });
     if (line.trim()) lines.push(line.trim());
   }
-  const datePattern = /\b(?:\d{1,2}[\/-]\d{1,2}[\/-](?:\d{2}|\d{4})|\d{4}[\/-]\d{1,2}[\/-]\d{1,2})\b/;
+  const statementYear = Number(lines.join(' ').match(/Statement Period:[\s\S]{0,80}?(\d{4})/i)?.[1]) || new Date().getFullYear();
+  const datePattern = /\b(?:\d{1,2}[\/-]\d{1,2}(?:[\/-](?:\d{2}|\d{4}))?|\d{4}[\/-]\d{1,2}[\/-]\d{1,2})\b/;
   const amountPattern = /(?:\(?\$?\s*-?\d{1,3}(?:,\d{3})*(?:\.\d{2})\)?|\(?\$?\s*-?\d+\.\d{2}\)?)(?!\d)/g;
+  let sectionType = 'expense';
   return lines.map((line) => {
+    if (/electronic deposits|other credits/i.test(line)) sectionType = 'income';
+    if (/electronic payments|other withdrawals|fees and charges/i.test(line)) sectionType = 'expense';
     const dateMatch = line.match(datePattern);
     const amountMatches = line.match(amountPattern);
     if (!dateMatch || !amountMatches) return null;
-    const amount = numberValue(amountMatches[amountMatches.length - 1]);
-    const description = line.replace(dateMatch[0], '').replace(amountMatches[amountMatches.length - 1], '').replace(/\s{2,}/g, ' ').trim();
+    const amountText = amountMatches[amountMatches.length - 1];
+    const amount = numberValue(amountText);
+    const description = line.replace(dateMatch[0], '').replace(amountText, '').replace(/\s{2,}/g, ' ').trim();
     if (!description || !amount) return null;
-    const income = amount > 0 && !/[(-]\s*\$?\d/.test(amountMatches[amountMatches.length - 1]);
-    return { date: normalizeDate(dateMatch[0]), description, type: income ? 'income' : 'expense', amount: Math.abs(amount), category: income ? 'Income' : categoryFor(description) };
+    const income = sectionType === 'income' || (amount > 0 && !/[(-]\s*\$?\d/.test(amountText));
+    return { date: normalizeDate(dateMatch[0], statementYear), description, type: income ? 'income' : 'expense', amount: Math.abs(amount), category: income ? 'Income' : categoryFor(description) };
   }).filter((row) => row && row.date && row.amount > 0);
 }
 async function readStatement(file) {
