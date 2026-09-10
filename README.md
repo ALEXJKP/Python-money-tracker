@@ -1,106 +1,39 @@
-# Python-money-tracker
-poker tracking for revenue
-# 🃏 Poker Income Tracker
+# Ledgerly
 
-A simple calendar-based web app for tracking daily poker dealing income — click a day, log your entries, and automatically calculate your cut vs. the house's cut.
+Ledgerly is a small, local-first personal finance dashboard. It runs as a static web app with no backend or install step, making it easy to open locally or publish on GitHub Pages.
 
-## 📖 Overview
+## Features
 
-This tracker helps you log and visualize earnings from dealing poker. Every day on the calendar can hold one or more entries. Each entry is split into two types:
+- Monthly income, spending, available cash, and savings-rate summary
+- Add income and expenses with validation and keyword-based category suggestions
+- Autosaves unfinished transaction and bill forms as browser drafts
+- Separate input log showing each saved transaction and recurring bill
+- Category budgets with progress meters and over-budget alerts
+- Recurring bill list with due dates
+- Seven-day cash-flow chart
+- CSV import and export
+- Bank statement import from PDF, CSV, OFX, and QFX files with a review preview
+- Automatic income/expense detection, category suggestions, and duplicate skipping
 
-- **Original Entries** — the initial buy-in a player makes
-- **Re-Entries** — any additional buy-in after busting out
+PDF imports extract selectable text in the browser. Scanned/image-only PDFs cannot be read without OCR and are reported clearly so they are not imported incorrectly.
+- Responsive layout with useful empty states
+- Persistent browser storage through `localStorage`
 
-Each type has a different revenue split with **Python Poker**:
+## Run locally
 
-| Entry Type | Python Poker Gets | You Keep |
-|---|---|---|
-| Original Entry | 50% | 50% |
-| Re-Entry | 30% | 70% |
+Open `index.html` in a modern browser, or serve the folder with any static file server:
 
-The app automatically calculates these splits for every day, week, month, and running total.
-
-## ✨ Features
-
-- 📅 **Interactive Calendar** — click any day to open an entry form for that date
-- ➕ **Log Entries** — record the number of original entries and re-entries, plus the dollar amount per entry (or a total, depending on how you want to log it)
-- 💰 **Automatic Split Calculation** — instantly computes:
-  - Total original entry income
-  - Total re-entry income
-  - Python Poker's cut (50% of originals + 30% of re-entries)
-  - Your net take-home (50% of originals + 70% of re-entries)
-  - Your net take-home
-- 📊 **Summaries** — daily, weekly, monthly, and all-time totals
-- 🏦 **Savings Reserve** — automatically set aside $25 for every logged night and track it separately
-- 🖊️ **Edit/Delete Entries** — update a day's numbers if something changes
-- 💾 **Persistent Storage** — saved locally (or to a backend/database, depending on setup) so your history isn't lost
-- 📤 **Export** — optional CSV/JSON export for taxes or bookkeeping
-
-## 🧮 How the Math Works
-
-For any given day:
-
-```
-Original Income     = (# of Original Entries) × (Entry Amount)
-Re-Entry Income      = (# of Re-Entries) × (Entry Amount)
-
-Python Poker Cut     = (Original Income × 0.50) + (Re-Entry Income × 0.30)
-Your Net Income      = (Original Income × 0.50) + (Re-Entry Income × 0.70)
-Available Take-Home  = Your Net Income - $25 nightly savings reserve
-
-Total Day Income     = Original Income + Re-Entry Income
+```bash
+python -m http.server
 ```
 
-**Example:**
-- 10 Original Entries @ $50 = $500
-- 4 Re-Entries @ $50 = $200
+The dashboard starts with an empty ledger. Use **Reset workspace** in the sidebar to clear your entries and budgets. Data stays in the current browser until the workspace is reset or browser storage is cleared.
 
+## CSV format
+
+Imports expect a header row followed by:
+
+```text
+Date,Description,Type,Category,Amount
+2026-09-10,Coffee,expense,Food,4.50
 ```
-Python Poker Cut = ($500 × 0.50) + ($200 × 0.30) = $250 + $60  = $310
-Your Net Income  = ($500 × 0.50) + ($200 × 0.70) = $250 + $140 = $390
-```
-
-## 🛠️ Tech Stack
-
-> Suggested stack — adjust to your preference.
-
-- **Frontend:** HTML, CSS, JavaScript (or React)
-- **Calendar UI:** [FullCalendar.js](https://fullcalendar.io/) or a custom-built grid
-- **Data Storage:** Browser `localStorage` for a simple single-user version, or a lightweight backend (Node/Express + SQLite, or Firebase) if you want access from multiple devices
-- **Hosting:** GitHub Pages (static version) or a small host like Render/Vercel (if using a backend)
-
-## 📂 Project Structure
-
-```
-poker-income-tracker/
-├── index.html          # Main calendar page
-├── style.css           # Styling
-├── script.js           # Calendar logic, entry form, calculations
-├── data/
-│   └── entries.json    # (if using local JSON storage)
-├── assets/             # Icons/images
-└── README.md
-```
-
-## 🚀 Getting Started
-
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/yourusername/poker-income-tracker.git
-   cd poker-income-tracker
-   ```
-2. Open `index.html` in your browser (or run a local server).
-3. Click on a calendar day to add your entries for that date.
-4. View your running totals and Python Poker split in the summary panel.
-
-## 🗺️ Roadmap / Ideas
-
-- [ ] Monthly bar chart of net income vs. house cut
-- [ ] Multiple game/venue tracking (if you deal at more than one spot)
-- [ ] Adjustable split percentages (in case terms change)
-- [ ] Mobile-friendly layout
-- [ ] Login system for multi-device sync
-
-## 📄 License
-
-MIT — free to use and modify.
