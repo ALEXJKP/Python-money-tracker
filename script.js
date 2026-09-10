@@ -13,6 +13,12 @@ const defaultState = {
 };
 let state = loadState();
 let pendingImport = [];
+const cleanupImport = new URLSearchParams(window.location.search).has('clear-import');
+if (cleanupImport) {
+  state.transactions = [];
+  state.activityLog = state.activityLog.filter((entry) => entry.kind !== 'transaction');
+  saveState();
+}
 
 const $ = (selector) => document.querySelector(selector);
 const money = (value) => `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
