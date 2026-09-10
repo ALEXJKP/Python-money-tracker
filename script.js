@@ -13,10 +13,12 @@ const defaultState = {
 };
 let state = loadState();
 let pendingImport = [];
-const cleanupImport = new URLSearchParams(window.location.search).has('clear-import');
+const query = new URLSearchParams(window.location.search);
+const cleanupImport = query.has('clear-import') || (query.has('pdf') && !localStorage.getItem('ledgerly-pdf-cleanup-v1'));
 if (cleanupImport) {
   state.transactions = [];
   state.activityLog = state.activityLog.filter((entry) => entry.kind !== 'transaction');
+  localStorage.setItem('ledgerly-pdf-cleanup-v1', 'done');
   saveState();
 }
 
