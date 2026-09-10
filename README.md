@@ -21,7 +21,7 @@ Open `index.html` in a modern browser, or serve the folder with any static file 
 python -m http.server
 ```
 
-The starter workspace includes a few example transactions so the dashboard is immediately useful. Use **Reset workspace** in the sidebar to clear the examples and start from an empty ledger. Data stays in the current browser until the workspace is reset or browser storage is cleared.
+The dashboard starts with an empty ledger. Use **Reset workspace** in the sidebar to clear your entries and budgets. Data stays in the current browser until the workspace is reset or browser storage is cleared.
 
 ## CSV format
 

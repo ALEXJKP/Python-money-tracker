@@ -5,18 +5,8 @@ const MONTH = '2026-09';
 const cloneDefaults = () => JSON.parse(JSON.stringify(defaultState));
 const createId = () => globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function' ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const defaultState = {
-  transactions: [
-    { id: 'demo-1', description: 'Salary deposit', amount: 4200, type: 'income', category: 'Income', date: '2026-09-01' },
-    { id: 'demo-2', description: 'Rent', amount: 1450, type: 'expense', category: 'Housing', date: '2026-09-02' },
-    { id: 'demo-3', description: 'Grocery run', amount: 86.42, type: 'expense', category: 'Food', date: '2026-09-05' },
-    { id: 'demo-4', description: 'Freelance project', amount: 750, type: 'income', category: 'Income', date: '2026-09-06' },
-    { id: 'demo-5', description: 'Train pass', amount: 72, type: 'expense', category: 'Transport', date: '2026-09-08' }
-  ],
-  bills: [
-    { id: 'bill-1', name: 'Rent', amount: 1450, dueDay: 2, category: 'Housing' },
-    { id: 'bill-2', name: 'Internet', amount: 65, dueDay: 15, category: 'Utilities' },
-    { id: 'bill-3', name: 'Gym membership', amount: 38, dueDay: 21, category: 'Health' }
-  ],
+  transactions: [],
+  bills: [],
   budgets: { Housing: 1600, Food: 500, Transport: 250, Utilities: 220, Health: 180, Fun: 250, Shopping: 250 }
 };
 let state = loadState();
@@ -33,7 +23,14 @@ const categoryFor = (description) => {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved ? { ...defaultState, ...saved, budgets: { ...defaultState.budgets, ...saved.budgets } } : cloneDefaults();
+    if (!saved) return cloneDefaults();
+    return {
+      ...defaultState,
+      ...saved,
+      transactions: (saved.transactions || []).filter((transaction) => !String(transaction.id).startsWith('demo-')),
+      bills: (saved.bills || []).filter((bill) => !['bill-1', 'bill-2', 'bill-3'].includes(bill.id)),
+      budgets: { ...defaultState.budgets, ...saved.budgets }
+    };
   } catch { return cloneDefaults(); }
 }
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
